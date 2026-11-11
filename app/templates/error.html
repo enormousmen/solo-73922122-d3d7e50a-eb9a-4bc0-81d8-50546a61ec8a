@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · mTLS 证书链离线诊断</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>mTLS 客户端证书链离线诊断</h1>
+  <p class="sub">诊断计算在独立子进程中离线执行 · 最多 {{ capacity }} 份同时计算 · 单份超时 {{ timeout_seconds }} 秒</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>{{ heading }}</h2>
+    <div class="banner error"><strong>{{ title }}：</strong>{{ message }}</div>
+    <p class="hint">{{ hint }}</p>
+    <p>
+      <a class="btn secondary" href="/">← 返回诊断首页</a>
+    </p>
+  </section>
+</main>
+
+<footer>内网运维离线工具 · 失败请求不会展示任何半成品诊断结论</footer>
+</body>
+</html>

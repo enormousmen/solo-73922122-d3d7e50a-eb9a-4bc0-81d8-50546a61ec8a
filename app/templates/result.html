@@ -9,7 +9,7 @@
 <body>
 <header>
   <h1>诊断结果</h1>
-  <p class="sub">校验时间 {{ r.validation_time.isoformat() }} · 签名策略 {{ r.signature_policy }}</p>
+  <p class="sub">校验时间 {{ r.validation_time }} · 签名策略 {{ r.signature_policy }}</p>
 </header>
 
 <main>
@@ -47,7 +47,7 @@
         </div>
         <div class="cert-meta">
           签发者：{{ c.issuer }} · 序列号：{{ c.serial }} ·
-          有效期 {{ c.not_before.isoformat() }} → {{ c.not_after.isoformat() }}
+          有效期 {{ c.not_before }} → {{ c.not_after }}
           {% if c.is_ca %} · CA=TRUE{% if c.path_len is not none %}, pathLen={{ c.path_len }}{% endif %}{% endif %}
           {% if c.key_usage_present %} · KeyUsage: keyCertSign={{ c.key_cert_sign }}{% endif %}
           {% if c.is_self_issued %} · <em>自颁发（不占 pathLen）</em>{% endif %}
@@ -146,7 +146,7 @@
           <td>{{ c.subject }}</td>
           <td>{{ c.issuer }}</td>
           <td>{{ c.serial }}</td>
-          <td>{{ c.not_before.date() }} → {{ c.not_after.date() }}</td>
+          <td>{{ c.not_before | date_only }} → {{ c.not_after | date_only }}</td>
           <td>{% if c.is_ca %}CA{% if c.path_len is not none %}/{{ c.path_len }}{% endif %}{% else %}—{% endif %}</td>
           <td>{% if c.key_usage_present %}{{ 'keyCertSign✓' if c.key_cert_sign else 'keyCertSign✗' }}{% else %}无扩展{% endif %}</td>
           <td>{{ c.sig_label }}{% if not c.sig_allowed %} <strong>(不允许)</strong>{% endif %}</td>

@@ -18,6 +18,17 @@
   {% endif %}
 
   <section class="card">
+    <h2>并发与超时说明</h2>
+    <p class="hint">
+      每份证书包都在<strong>独立子进程</strong>中解析与诊断，Web 主进程不承担计算。
+      全服务最多同时接纳 <strong>{{ capacity }}</strong> 份计算，<strong>没有等待队列</strong>：名额已满时新请求立即收到
+      <code>503 服务繁忙</code>，请稍后重试。取得名额后 <strong>{{ timeout_seconds }} 秒</strong>未完成将收到
+      <code>504 计算超时</code>，对应子进程会被终止回收；您关闭页面或中断请求也会停止该计算。
+      计算期间首页与示例载入仍可正常使用，失败请求不会展示半成品结论。
+    </p>
+  </section>
+
+  <section class="card">
     <h2>载入内置示例</h2>
     <p class="hint">示例为离线生成的交叉签发 PEM，载入后可直接点「开始诊断」。</p>
     <div class="example-row">
@@ -45,7 +56,8 @@
       </label>
     </div>
     <p class="hint">三类输入去重后总计不得超过 12 张证书。全部计算在本机离线完成，不上传任何外部服务。</p>
-    <button type="submit" class="btn primary">开始诊断</button>
+    <button type="submit" class="btn primary" id="submit-btn">开始诊断</button>
+    <div class="banner error" id="submit-error" hidden></div>
   </form>
 </main>
 
