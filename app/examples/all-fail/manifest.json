@@ -1,0 +1,7 @@
+{
+  "title": "全链失败演示（pathLen/过期/KeyUsage/缺失签发者）",
+  "leaf": "01-client-leaf.pem",
+  "intermediates": "02-intermediates.pem",
+  "root": "03-trusted-root.pem",
+  "validation_time": "2026-11-11T00:00:00+00:00"
+}

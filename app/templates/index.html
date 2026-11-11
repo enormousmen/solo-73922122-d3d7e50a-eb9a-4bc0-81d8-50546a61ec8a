@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mTLS 证书链离线诊断</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>mTLS 客户端证书链离线诊断</h1>
+  <p class="sub">区分「中间证书缺失」与「交叉签发选链错误」 · 仅支持 {{ sig_policy }} · 不检查吊销与证书用途(EKU)</p>
+</header>
+
+<main>
+  {% if error %}
+  <div class="banner error"><strong>输入错误：</strong>{{ error }}</div>
+  {% endif %}
+
+  <section class="card">
+    <h2>载入内置示例</h2>
+    <p class="hint">示例为离线生成的交叉签发 PEM，载入后可直接点「开始诊断」。</p>
+    <div class="example-row">
+      {% for ex in examples %}
+      <button type="button" class="btn secondary load-example" data-example="{{ ex }}">{{ ex }}</button>
+      {% endfor %}
+    </div>
+  </section>
+
+  <form action="/diagnose" method="post" enctype="multipart/form-data" class="card">
+    <h2>诊断输入</h2>
+    <div class="grid">
+      <label>客户端证书（恰好 1 张，PEM）
+        <input type="file" name="leaf" accept=".pem,.crt,.cer,.txt" required>
+      </label>
+      <label>受信根 PEM（独立指定，恰好 1 张）
+        <input type="file" name="root" accept=".pem,.crt,.cer,.txt" required>
+      </label>
+      <label class="span2">中间证书包（无序，可多张，PEM 拼接）
+        <input type="file" name="intermediates" accept=".pem,.crt,.cer,.txt">
+      </label>
+      <label class="span2">校验时间（ISO 8601，留空则取当前 UTC；示例默认 2026-11-11T00:00:00Z）
+        <input type="text" name="validation_time" id="validation_time"
+               value="{{ default_time }}" placeholder="2026-11-11T00:00:00+00:00">
+      </label>
+    </div>
+    <p class="hint">三类输入去重后总计不得超过 12 张证书。全部计算在本机离线完成，不上传任何外部服务。</p>
+    <button type="submit" class="btn primary">开始诊断</button>
+  </form>
+</main>
+
+<footer>内网运维离线工具 · FastAPI + cryptography · Docker Compose 部署</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

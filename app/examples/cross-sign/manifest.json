@@ -1,0 +1,7 @@
+{
+  "title": "交叉签发选链（一条通过 / 一条不受信）",
+  "leaf": "01-client-leaf.pem",
+  "intermediates": "02-intermediates.pem",
+  "root": "03-trusted-root.pem",
+  "validation_time": "2026-11-11T00:00:00+00:00"
+}

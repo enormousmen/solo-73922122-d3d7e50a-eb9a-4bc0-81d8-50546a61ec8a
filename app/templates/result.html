@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>诊断结果 · mTLS 证书链离线诊断</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>诊断结果</h1>
+  <p class="sub">校验时间 {{ r.validation_time.isoformat() }} · 签名策略 {{ r.signature_policy }}</p>
+</header>
+
+<main>
+  {% if r.passing_chain %}
+  <div class="banner ok">
+    <strong>存在可通过的链（{{ r.passing_chain.chain|length }} 张证书）。</strong>
+    共枚举到 {{ r.candidate_chains|length }} 条无环候选路径，展示第一条通过的链；其余候选仍逐条列出。
+  </div>
+  {% else %}
+  <div class="banner error">
+    <strong>所有候选链均未通过（共 {{ r.candidate_chains|length }} 条）。</strong>
+    请查看每条链的失败位置与原因，以及下方「缺失签发者」专区。
+  </div>
+  {% endif %}
+
+  {% if r.global_notes %}
+  <section class="card">
+    <h2>全局提示</h2>
+    <ul class="notes">
+      {% for n in r.global_notes %}<li>{{ n }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if r.passing_chain %}
+  <section class="card">
+    <h2>✅ 通过的链</h2>
+    <ol class="chain">
+      {% for c in r.passing_chain.chain %}
+      <li>
+        <div class="cert-title">
+          <span class="pos">#{{ loop.index0 }}</span>
+          <strong>{{ c.subject }}</strong>
+          {% if c.roles %}<span class="tags">{% for role in c.roles %}<em class="tag {{ role }}">{{ role }}</em>{% endfor %}</span>{% endif %}
+        </div>
+        <div class="cert-meta">
+          签发者：{{ c.issuer }} · 序列号：{{ c.serial }} ·
+          有效期 {{ c.not_before.isoformat() }} → {{ c.not_after.isoformat() }}
+          {% if c.is_ca %} · CA=TRUE{% if c.path_len is not none %}, pathLen={{ c.path_len }}{% endif %}{% endif %}
+          {% if c.key_usage_present %} · KeyUsage: keyCertSign={{ c.key_cert_sign }}{% endif %}
+          {% if c.is_self_issued %} · <em>自颁发（不占 pathLen）</em>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>候选链逐条结果（共 {{ r.candidate_chains|length }} 条{% if r.truncated %}，已达枚举上限并截断{% endif %}）</h2>
+    {% for cand in r.candidate_chains %}
+    <div class="candidate {{ 'pass' if cand.valid else 'fail' }}">
+      <h3>候选链 {{ loop.index }}
+        <span class="status {{ 'ok' if cand.valid else 'bad' }}">{{ '通过' if cand.valid else '失败' }}</span>
+        <span class="status {{ 'ok' if cand.reaches_root else 'bad' }}">{{ '到达指定受信根' if cand.reaches_root else '未到达受信根' }}</span>
+      </h3>
+      <ol class="chain compact">
+        {% for c in cand.chain %}
+        <li>
+          <span class="pos">#{{ loop.index0 }}</span>
+          <strong>{{ c.subject }}</strong>
+          <span class="cert-meta">← {{ c.issuer }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% if cand.failures %}
+      <table class="fail-table">
+        <thead><tr><th>失败位置</th><th>证书</th><th>代码</th><th>原因</th></tr></thead>
+        <tbody>
+        {% for f in cand.failures %}
+          <tr>
+            <td>#{{ f.position }}</td>
+            <td>{{ f.certificate_subject }}</td>
+            <td><code>{{ f.code }}</code></td>
+            <td>{{ f.reason }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  {% if r.ambiguous_names %}
+  <section class="card warn">
+    <h2>同名签发者歧义（已按验签区分）</h2>
+    <p class="hint">下列证书存在「subject DN 相同但签名验证失败」的候选证书——典型的交叉签发/陈旧证书场景。这些候选不会进入有效链，仅已验证的签发者参与建链。</p>
+    {% for m in r.ambiguous_names %}
+    <div class="missing">
+      <p>证书「{{ m.subject_cert.subject }}」的签发者 DN <code>{{ m.issuer_dn }}</code> 存在同名但验签失败的候选：</p>
+      <ul>
+        {% for x in m.same_name_mismatches %}
+        <li>「{{ x.candidate.subject }}」(序列号 {{ x.candidate.serial }})：{{ x.failure }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <section class="card {{ 'warn' if r.missing_issuers }}">
+    <h2>缺失签发者（单独指出）</h2>
+    {% if r.missing_issuers %}
+    <p class="hint">下列证书的签发者 DN 在输入包中不存在，或仅存在「同名但验签失败」的证书——后者通常意味着交叉签发链选错或证书不匹配，不能当作有效签发者。</p>
+    {% for m in r.missing_issuers %}
+    <div class="missing">
+      <p><strong>缺失：</strong>证书「{{ m.subject_cert.subject }}」找不到已验证的签发者
+         <code>{{ m.issuer_dn }}</code></p>
+      {% if m.same_name_mismatches %}
+      <ul>
+        {% for x in m.same_name_mismatches %}
+        <li>同名候选「{{ x.candidate.subject }}」(序列号 {{ x.candidate.serial }})：{{ x.failure }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="hint">输入中没有任何证书的 subject 与该 issuer DN 相同——属于中间证书缺失。</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="hint">无：每条死胡同都能继续向上，或已终止于指定受信根。</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>输入证书清单（{{ r.certificates|length }} 张）</h2>
+    <table class="cert-table">
+      <thead><tr><th>#</th><th>Subject</th><th>Issuer</th><th>序列号</th><th>有效期</th><th>CA/pathLen</th><th>KeyUsage</th><th>签名算法</th><th>角色</th></tr></thead>
+      <tbody>
+      {% for c in r.certificates %}
+        <tr class="{{ 'bad-algo' if not c.sig_allowed }}">
+          <td>{{ c.index }}</td>
+          <td>{{ c.subject }}</td>
+          <td>{{ c.issuer }}</td>
+          <td>{{ c.serial }}</td>
+          <td>{{ c.not_before.date() }} → {{ c.not_after.date() }}</td>
+          <td>{% if c.is_ca %}CA{% if c.path_len is not none %}/{{ c.path_len }}{% endif %}{% else %}—{% endif %}</td>
+          <td>{% if c.key_usage_present %}{{ 'keyCertSign✓' if c.key_cert_sign else 'keyCertSign✗' }}{% else %}无扩展{% endif %}</td>
+          <td>{{ c.sig_label }}{% if not c.sig_allowed %} <strong>(不允许)</strong>{% endif %}</td>
+          <td>{% for role in c.roles %}<em class="tag {{ role }}">{{ role }}</em>{% endfor %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>查看完整 JSON 结果</summary>
+      <pre id="json">{{ r_dict | tojson(indent=2) }}</pre>
+    </details>
+  </section>
+
+  <p><a class="btn secondary" href="/">← 返回重新诊断</a></p>
+</main>
+
+<footer>内网运维离线工具 · 不做吊销/OCSP/CRL 与 EKU 检查</footer>
+</body>
+</html>
